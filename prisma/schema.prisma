@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enum para permissões
+enum Role {
+  ADMIN
+  DOCTOR
+  SECRETARY
+}
+
+// Status do agendamento
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  COMPLETED
+}
+
+// Usuários do sistema (Médicos/Secretárias)
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(DOCTOR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  appointments  Appointment[]
+}
+
+// Pacientes
+model Patient {
+  id            String    @id @default(cuid())
+  name          String
+  cpf           String    @unique
+  phone         String
+  birthDate     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  appointments  Appointment[]
+  records       MedicalRecord[]
+}
+
+// Agendamentos
+model Appointment {
+  id            String            @id @default(cuid())
+  date          DateTime
+  status        AppointmentStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  doctorId      String
+  doctor        User              @relation(fields: [doctorId], references: [id])
+  patientId     String
+  patient       Patient           @relation(fields: [patientId], references: [id])
+}
+
+// Prontuário
+model MedicalRecord {
+  id            String    @id @default(cuid())
+  description   String    @db.Text
+  prescription  String?   @db.Text
+  createdAt     DateTime  @default(now())
+
+  patientId     String
+  patient       Patient   @relation(fields: [patientId], references: [id])
+}
