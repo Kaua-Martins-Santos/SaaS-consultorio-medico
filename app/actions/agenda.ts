@@ -8,6 +8,10 @@ export async function createAppointment(formData: FormData) {
   const patientId = formData.get("patientId") as string
   const dateStr = formData.get("date") as string
   const notes = formData.get("notes") as string
+  
+  // --- ADICIONEI ISSO AQUI ---
+  const price = formData.get("price") as string 
+  // ---------------------------
 
   if (!patientId || !dateStr) {
     return
@@ -17,14 +21,11 @@ export async function createAppointment(formData: FormData) {
   const appointmentDate = new Date(dateStr)
   const now = new Date()
 
-  // Se a data do agendamento for menor que "agora", cancela tudo.
   if (appointmentDate < now) {
-    // Como estamos numa Server Action simples, o return apenas não faz nada.
-    // O usuário clicaria e não sairia da tela.
     return 
   }
 
-  // 2. Busca ou Cria o Médico (Mock para funcionar sem login)
+  // 2. Busca ou Cria o Médico
   let doctor = await prisma.user.findFirst()
   
   if (!doctor) {
@@ -38,12 +39,18 @@ export async function createAppointment(formData: FormData) {
     })
   }
 
-  // 3. Cria o agendamento
+  // 3. Cria o agendamento COM O PREÇO
   await prisma.appointment.create({
     data: {
       date: appointmentDate,
       status: "PENDING",
       notes: notes,
+      
+      // --- E ISSO AQUI NO FINAL ---
+      // Converte o texto "150.00" para número real. Se estiver vazio, salva 0.
+      price: price ? parseFloat(price) : 0, 
+      // ----------------------------
+
       patientId: patientId,
       doctorId: doctor.id
     }
@@ -51,5 +58,7 @@ export async function createAppointment(formData: FormData) {
 
   revalidatePath("/dashboard/agenda")
   revalidatePath("/dashboard")
+  // Atualiza o financeiro também para o valor aparecer na hora
+  revalidatePath("/dashboard/financeiro") 
   redirect("/dashboard/agenda")
 }

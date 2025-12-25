@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar, User } from "lucide-react";
+import { ArrowLeft, Calendar, User, DollarSign } from "lucide-react"; // Adicionei o DollarSign
 import { prisma } from "@/lib/prisma";
 import { createAppointment } from "@/app/actions/agenda";
 
@@ -8,9 +8,7 @@ export default async function NovoAgendamentoPage() {
     orderBy: { name: 'asc' }
   });
 
-  // Calcula a data/hora mínima para o input (formato YYYY-MM-DDTHH:mm)
-  // O new Date() pega a hora atual. O slice corta os segundos para caber no input.
-  // Nota: Em produção, idealmente ajustamos o fuso horário, mas localmente isso funciona bem.
+  // Data mínima (agora) para não agendar no passado
   const dataMinima = new Date().toISOString().slice(0, 16);
 
   return (
@@ -51,22 +49,37 @@ export default async function NovoAgendamentoPage() {
             </select>
           </div>
 
-          {/* Data e Hora com TRAVA visual (min) */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              Data e Hora
-            </label>
-            <input 
-              type="datetime-local"
-              name="date"
-              required
-              min={dataMinima} // <--- AQUI ESTÁ A MÁGICA
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <p className="text-[10px] text-muted-foreground">
-                * Não é possível agendar datas passadas.
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+              {/* Data e Hora */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Data e Hora
+                </label>
+                <input 
+                  type="datetime-local"
+                  name="date"
+                  required
+                  min={dataMinima}
+                  className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+
+              {/* CAMPO NOVO: Valor da Consulta */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  Valor (R$)
+                </label>
+                <input 
+                  name="price" 
+                  type="number"
+                  step="0.01" 
+                  placeholder="0,00"
+                  defaultValue="150.00"
+                  className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
           </div>
 
           {/* Observações */}
