@@ -1,181 +1,154 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Phone, User, Trash2, Edit, Clock, Mail, FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { saveMedicalRecord, deletePatient } from "@/app/actions/pacientes";
+import Link from "next/link";
+import { ArrowLeft, Edit, FileText, Calendar, User, Phone, Mail, Clock } from "lucide-react";
+import { notFound } from "next/navigation";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function PacientePage({ params }: PageProps) {
+export default async function PacienteDetalhes({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Busca paciente E seus históricos (records) ordenados do mais recente para o antigo
   const paciente = await prisma.patient.findUnique({
     where: { id },
     include: {
-      records: {
-        orderBy: { createdAt: 'desc' }
-      }
+        appointments: { orderBy: { date: 'desc' } },
+        records: { orderBy: { createdAt: 'desc' } }
     }
   });
 
-  if (!paciente) {
-    notFound();
-  }
+  if (!paciente) return notFound();
 
   return (
-    <div className="space-y-6">
-      
+    <div className="space-y-8 max-w-6xl mx-auto">
       {/* Cabeçalho */}
-      <div className="flex items-center gap-4">
-        <Link 
-          href="/dashboard/pacientes" 
-          className="p-2 rounded-lg border bg-card hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 text-muted-foreground" />
-        </Link>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold tracking-tight">{paciente.name}</h2>
-          
-          {/* Informações do Paciente (CPF, Tel, Email) */}
-          <div className="flex flex-col gap-1 mt-1 text-sm text-muted-foreground">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" /> CPF: {paciente.cpf}
-              </span>
-              <span className="flex items-center gap-1">
-                <Phone className="h-3 w-3" /> {paciente.phone}
-              </span>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+         <div className="flex items-center gap-4">
+            <Link href="/dashboard/pacientes" className="p-2 hover:bg-gray-100 rounded-full transition-colors border shadow-sm">
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </Link>
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900">{paciente.name}</h1>
+                <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                        <User className="w-4 h-4" />
+                        CPF: {paciente.cpf || "N/I"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Nasc: {paciente.birthDate ? new Date(paciente.birthDate).toLocaleDateString('pt-BR') : "N/I"}
+                    </span>
+                </div>
             </div>
-            {/* E-mail adicionado aqui */}
-            <span className="flex items-center gap-1">
-              <Mail className="h-3 w-3" /> {paciente.email || "Sem e-mail cadastrado"}
-            </span>
-          </div>
-        </div>
-        
-        {/* Botões de Ação */}
-        <div className="flex gap-2">
-            
-            {/* Botão EXCLUIR */}
-            <form action={deletePatient}>
-                <input type="hidden" name="id" value={paciente.id} />
-                <button 
-                  type="submit" 
-                  className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
-                >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
-                </button>
-            </form>
-
-            {/* Botão NOVA RECEITA */}
-            <Link 
-                href={`/dashboard/pacientes/${paciente.id}/receita`}
-                className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors"
-            >
-                <FileText className="h-4 w-4" />
-                Receita
-            </Link>
-
-            {/* Botão EDITAR */}
-            <Link 
-                href={`/dashboard/pacientes/${paciente.id}/editar`}
-                className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-                <Edit className="h-4 w-4" />
-                Editar Dados
-            </Link>
-        </div>
+         </div>
+         
+         <div className="flex gap-3">
+             <Link href={`/dashboard/pacientes/${paciente.id}/receita`} className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 hover:text-primary flex items-center gap-2 transition-all">
+                 <FileText className="w-4 h-4" /> 
+                 <span className="hidden sm:inline">Gerar Receita</span>
+             </Link>
+             <Link href={`/dashboard/pacientes/${paciente.id}/editar`} className="bg-primary text-white px-4 py-2 rounded-lg font-medium shadow-md hover:bg-primary/90 flex items-center gap-2 transition-all">
+                 <Edit className="w-4 h-4" /> 
+                 <span>Editar</span>
+             </Link>
+         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        
-        {/* Coluna Principal: Evolução e Histórico */}
-        <div className="md:col-span-2 space-y-8">
-            
-            {/* Formulário de Nova Evolução */}
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                    <Edit className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Nova Evolução</h3>
-                </div>
-                
-                <form action={saveMedicalRecord}>
-                    <input type="hidden" name="patientId" value={paciente.id} />
-                    
-                    <textarea 
-                        name="description"
-                        required
-                        placeholder="Digite a evolução do paciente, queixas e observações..."
-                        className="min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                    />
-                    <div className="flex justify-end mt-2">
-                        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm">
-                            Salvar Evolução
-                        </button>
-                    </div>
-                </form>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Coluna Esquerda: Informações (Agora minimalista) */}
+          <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl border shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-6 pb-2 border-b flex items-center gap-2">
+                      <User className="w-4 h-4 text-primary" /> Dados de Contato
+                  </h3>
+                  <div className="space-y-6">
+                      <div className="flex items-start gap-4">
+                          <div className="mt-1">
+                              <Phone className="w-5 h-5 text-gray-400" />
+                          </div>
+                          <div>
+                              <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Telefone</p>
+                              <p className="text-base font-medium text-gray-900 mt-0.5">{paciente.phone}</p>
+                          </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4">
+                          <div className="mt-1">
+                              <Mail className="w-5 h-5 text-gray-400" />
+                          </div>
+                          <div>
+                              <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Email</p>
+                              <p className="text-base font-medium text-gray-900 mt-0.5">{paciente.email || "—"}</p>
+                          </div>
+                      </div>
 
-            {/* Lista de Histórico REAL */}
-            <div className="space-y-4">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> Histórico Clínico
-                </h3>
-                
-                {paciente.records.length === 0 && (
-                    <div className="text-center p-12 border rounded-xl border-dashed text-muted-foreground text-sm bg-muted/10">
-                        Nenhum registro clínico encontrado para este paciente.
-                    </div>
-                )}
-                
-                {paciente.records.map((record) => (
-                    <div key={record.id} className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                    Consulta
-                                </span>
-                                <span className="text-xs text-muted-foreground font-medium">
-                                    {new Date(record.createdAt).toLocaleDateString('pt-BR')} às {new Date(record.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
-                        </div>
-                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
-                            {record.description}
-                        </p>
-                    </div>
-                ))}
-            </div>
-        </div>
+                      <div className="flex items-start gap-4">
+                          <div className="mt-1">
+                              <Calendar className="w-5 h-5 text-gray-400" />
+                          </div>
+                          <div>
+                              <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Data de Cadastro</p>
+                              <p className="text-base font-medium text-gray-900 mt-0.5">
+                                  {new Date(paciente.createdAt).toLocaleDateString('pt-BR')}
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
 
-        {/* Coluna Lateral: Detalhes Fixo */}
-        <div className="space-y-6">
-            <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
-                <h3 className="font-semibold text-sm border-b pb-2">Detalhes do Paciente</h3>
-                
-                <div className="space-y-4 text-sm">
-                    <div>
-                        <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Data de Nascimento</p>
-                        <p className="font-medium mt-1">
-                            {paciente.birthDate ? new Date(paciente.birthDate).toLocaleDateString('pt-BR') : 'Não informado'}
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Convênio</p>
-                        <p className="font-medium mt-1">Particular</p>
-                    </div>
-                    <div>
-                        <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Primeira Visita</p>
-                        <p className="font-medium mt-1">{new Date(paciente.createdAt).toLocaleDateString('pt-BR')}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+          {/* Coluna Direita: Histórico */}
+          <div className="lg:col-span-2 space-y-6">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  Histórico Clínico
+              </h3>
 
+              <div className="relative border-l-2 border-gray-200 ml-3 space-y-8 pb-8">
+                  {paciente.appointments.length === 0 && (
+                      <div className="ml-8 p-6 bg-gray-50 rounded-lg border border-dashed text-center">
+                          <p className="text-gray-500">Nenhum atendimento registrado.</p>
+                      </div>
+                  )}
+
+                  {paciente.appointments.map((consulta) => (
+                      <div key={consulta.id} className="ml-6 relative group">
+                          <div className={`absolute -left-[31px] top-4 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10
+                             ${consulta.status === 'CONFIRMED' ? 'bg-primary' : 
+                               consulta.status === 'CANCELLED' ? 'bg-red-400' : 'bg-gray-300'}
+                          `}></div>
+                          
+                          <div className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex justify-between items-start mb-3">
+                                  <div>
+                                      <p className="font-bold text-gray-900 text-lg">
+                                          {new Date(consulta.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                      </p>
+                                      <p className="text-sm text-gray-500 font-medium">
+                                          {new Date(consulta.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                  </div>
+                                  <span className={`text-xs font-bold px-2 py-1 rounded-full 
+                                      ${consulta.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : ''}
+                                      ${consulta.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : ''}
+                                      ${consulta.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : ''}
+                                  `}>
+                                      {consulta.status === 'PENDING' && 'Agendado'}
+                                      {consulta.status === 'CONFIRMED' && 'Realizado'}
+                                      {consulta.status === 'CANCELLED' && 'Cancelado'}
+                                  </span>
+                              </div>
+                              
+                              {consulta.notes ? (
+                                  <div className="bg-gray-50 p-4 rounded-lg text-gray-700 text-sm border-l-4 border-gray-300">
+                                      {consulta.notes}
+                                  </div>
+                              ) : (
+                                  <p className="text-gray-400 text-sm italic">Sem anotações.</p>
+                              )}
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
       </div>
     </div>
   );

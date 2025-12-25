@@ -1,10 +1,14 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
 
 const handler = NextAuth({
   pages: {
-    signIn: "/login", // Página customizada que vamos criar
+    signIn: "/login",
+  },
+  session: {
+    strategy: "jwt",
   },
   providers: [
     CredentialsProvider({
@@ -28,10 +32,12 @@ const handler = NextAuth({
           return null
         }
 
-        // 3. Verifica a senha 
-        // (Nota: Em produção usaríamos bcrypt para comparar hash, 
-        // mas como seu usuário teste é "123", vamos comparar direto por enquanto)
-        if (user.password === credentials.password) {
+        // 3. Verifica a senha com Criptografia (Bcrypt)
+        // Se a senha no banco não estiver criptografada ainda (ex: "123"), 
+        // essa comparação vai falhar. Você precisará criar um novo usuário ou resetar a senha.
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+
+        if (isPasswordValid) {
           return {
             id: user.id,
             name: user.name,
@@ -46,7 +52,6 @@ const handler = NextAuth({
   callbacks: {
     async session({ session, token }) {
         if (session.user && token.sub) {
-            // Adiciona o ID do usuário na sessão para usarmos depois
             // @ts-ignore
             session.user.id = token.sub
         }

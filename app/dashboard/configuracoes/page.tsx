@@ -1,68 +1,107 @@
-import { prisma } from "@/lib/prisma";
-import { updateSettings } from "@/app/actions/settings";
-import { UserCog, Save } from "lucide-react";
+import { updateSettings, getDoctorSettings } from "@/app/actions/settings";
+import { Save, User, MapPin, Building, Phone } from "lucide-react";
 
 export default async function ConfiguracoesPage() {
-  // Busca seus dados atuais para preencher o formulário
-  const user = await prisma.user.findFirst();
-
-  if (!user) return <div>Erro: Usuário não encontrado.</div>;
+  const doctor = await getDoctorSettings();
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Configurações</h2>
-        <p className="text-muted-foreground">Gerencie seus dados profissionais para impressão.</p>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900">Configurações</h2>
+        <p className="text-muted-foreground">Gerencie seus dados pessoais e informações da clínica.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <form action={updateSettings} className="space-y-4">
-          
-          <div className="flex items-center gap-2 mb-4 text-primary">
-            <UserCog className="h-5 w-5" />
-            <h3 className="font-semibold">Dados do Médico</h3>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nome Completo (Como sairá na receita)</label>
-            <input 
-              name="name" 
-              defaultValue={user.name}
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Especialidade</label>
-                <input 
-                name="specialty" 
-                placeholder="Ex: Clínico Geral"
-                defaultValue={user.specialty || ""}
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
+      <div className="bg-white rounded-xl shadow-sm border p-8">
+        <form action={updateSettings} className="space-y-8">
+            
+            {/* Seção 1: Dados do Médico */}
+            <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-primary">
+                    <User className="w-5 h-5" /> Dados do Profissional
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Nome Completo</label>
+                        <input 
+                            name="name" 
+                            defaultValue={doctor?.name} 
+                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Especialidade</label>
+                        <input 
+                            name="specialty" 
+                            defaultValue={doctor?.specialty || ""} 
+                            placeholder="Ex: Cardiologista"
+                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">CRM</label>
+                        <input 
+                            name="crm" 
+                            defaultValue={doctor?.crm || ""} 
+                            placeholder="Ex: 123456/SP"
+                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        />
+                    </div>
+                </div>
             </div>
 
-            <div className="space-y-2">
-                <label className="text-sm font-medium">CRM / Registro</label>
-                <input 
-                name="crm" 
-                placeholder="Ex: 12345-SP"
-                defaultValue={user.crm || ""}
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-            </div>
-          </div>
+            <div className="h-px bg-gray-100 my-4" />
 
-          <div className="pt-4 flex justify-end">
+            {/* Seção 2: Dados da Clínica */}
+            <div>
+                {/* REMOVIDO: (Para Receita) */}
+                <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-primary">
+                    <Building className="w-5 h-5" /> Informações da Clínica
+                </h3>
+                <div className="grid gap-4">
+                    <div className="space-y-2">
+                        {/* REMOVIDO: (Cabeçalho) */}
+                        <label className="text-sm font-medium text-gray-700">Nome da Clínica</label>
+                        <input 
+                            name="clinicName" 
+                            defaultValue={doctor?.clinicName || ""} 
+                            placeholder="Ex: Virtus Clinical"
+                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        />
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                <MapPin className="w-3 h-3" /> Endereço Completo
+                            </label>
+                            <input 
+                                name="clinicAddress" 
+                                defaultValue={doctor?.clinicAddress || ""} 
+                                placeholder="Rua, Número - Cidade/UF"
+                                className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                <Phone className="w-3 h-3" /> Telefone Comercial
+                            </label>
+                            <input 
+                                name="clinicPhone" 
+                                defaultValue={doctor?.clinicPhone || ""} 
+                                placeholder="(00) 0000-0000"
+                                className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <button 
-              type="submit"
-              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-8 py-2 rounded-md text-sm font-medium transition-colors"
+                type="submit" 
+                className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-primary/90 transition-all ml-auto"
             >
-              <Save className="h-4 w-4" />
-              Salvar Configurações
+                <Save className="w-4 h-4" /> Salvar Alterações
             </button>
-          </div>
         </form>
       </div>
     </div>

@@ -16,6 +16,9 @@ model User {
   role          String    @default("DOCTOR")
   specialty     String?   
   crm           String?
+  clinicName    String?   @default("Virtus Clinical")
+  clinicAddress String?   @default("Endereço não configurado")
+  clinicPhone   String?   @default("(00) 0000-0000")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

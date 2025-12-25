@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Stethoscope } from "lucide-react";
+import { ShieldCheck } from "lucide-react"; // Troquei o ícone para um escudo (mais segurança/corp)
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,62 +24,62 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError("E-mail ou senha incorretos.");
+      setError("Credenciais inválidas.");
       setLoading(false);
     } else {
-      router.push("/dashboard"); // Redireciona para o painel se der certo
+      router.push("/dashboard");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm space-y-8 p-8 bg-white rounded-2xl shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="w-full max-w-sm space-y-8 p-10 bg-white rounded-lg shadow-xl border border-gray-200">
         
-        {/* Logo */}
+        {/* Logo Corporativo */}
         <div className="flex flex-col items-center text-center">
-          <div className="h-12 w-12 bg-primary rounded-xl flex items-center justify-center text-white mb-4">
-            <Stethoscope className="h-6 w-6" />
+          <div className="h-12 w-12 bg-primary rounded-lg flex items-center justify-center text-white mb-6 shadow-md">
+            <ShieldCheck className="h-6 w-6" />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-            Clinique Pro
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 font-serif">
+            Virtus Clinical
           </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            Entre com suas credenciais de médico.
+          <p className="text-xs uppercase tracking-widest text-gray-500 mt-2">
+            Acesso Restrito
           </p>
         </div>
 
         {/* Formulário */}
         <form className="space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg text-center">
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded text-center">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              E-mail
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+              Usuário Corporativo
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
-              placeholder="doutor@clinica.com"
+              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm bg-gray-50"
+              placeholder="admin@virtus.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Senha
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+              Senha de Acesso
             </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm bg-gray-50"
               placeholder="••••••••"
             />
           </div>
@@ -87,9 +87,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full justify-center rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex w-full justify-center rounded bg-primary px-3 py-3 text-sm font-bold text-white shadow hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
           >
-            {loading ? "Entrando..." : "Entrar no Sistema"}
+            {loading ? "Autenticando..." : "Acessar Sistema"}
           </button>
         </form>
       </div>

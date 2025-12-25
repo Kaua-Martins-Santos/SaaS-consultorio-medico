@@ -1,97 +1,89 @@
 import Link from "next/link";
-import { Search, Plus, MoreHorizontal, Filter } from "lucide-react";
-import { prisma } from "@/lib/prisma"; // Importamos nossa conexão com o banco
+import { Plus, FileText, Trash2 } from "lucide-react";
+import { getPatients, deletePatient } from "@/app/actions/pacientes";
+import Search from "@/app/components/search"; // Importe o componente que criamos
 
-// Transformamos a página em async para poder buscar dados do banco
-export default async function PacientesPage() {
+export default async function PacientesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ query?: string }>; // Next.js 15: searchParams é Promise
+}) {
+  // 1. Pega o termo de busca da URL
+  const params = await searchParams;
+  const query = params?.query || "";
   
-  // Busca os pacientes no banco de dados (ordenados por data de criação)
-  const pacientes = await prisma.patient.findMany({
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
+  // 2. Busca os dados filtrados
+  const pacientes = await getPatients(query);
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Pacientes</h2>
-          <p className="text-muted-foreground">Gerencie seus pacientes e prontuários.</p>
-        </div>
-        <Link 
+        <h2 className="text-3xl font-bold tracking-tight text-primary">Pacientes</h2>
+        <Link
           href="/dashboard/pacientes/novo"
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Novo Paciente
         </Link>
       </div>
 
-      {/* Barra de Busca */}
-      <div className="flex items-center gap-2 rounded-lg border bg-card p-2 shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            placeholder="Buscar por nome, CPF ou telefone..."
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pl-9 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-        <button className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
-          <Filter className="h-4 w-4" />
-          Filtros
-        </button>
+      {/* Barra de Busca Funcional */}
+      <div className="max-w-md">
+         <Search placeholder="Buscar por nome ou CPF..." />
       </div>
 
       {/* Tabela de Pacientes */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
         <div className="relative w-full overflow-auto">
           <table className="w-full caption-bottom text-sm">
-            <thead className="[&_tr]:border-b">
-              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Nome</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">CPF</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Telefone</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Data Cadastro</th>
-                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Ações</th>
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="h-12 px-4 text-left align-middle font-medium text-gray-500">Nome</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-gray-500">CPF</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-gray-500">Telefone</th>
+                <th className="h-12 px-4 text-right align-middle font-medium text-gray-500">Ações</th>
               </tr>
             </thead>
-            <tbody className="[&_tr:last-child]:border-0">
-              
-              {/* Se não tiver pacientes, mostra aviso amigável */}
-              {pacientes.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                    Nenhum paciente encontrado. Clique em "Novo Paciente" para começar.
-                  </td>
-                </tr>
-              )}
-
-              {/* Loop para mostrar os pacientes reais */}
+            <tbody className="divide-y divide-gray-100">
               {pacientes.map((paciente) => (
-                <tr key={paciente.id} className="border-b transition-colors hover:bg-muted/50">
-                  {/* Célula do Nome agora é um LINK clicável */}
-                  <td className="p-4 align-middle font-medium">
-                    <Link 
-                      href={`/dashboard/pacientes/${paciente.id}`} 
-                      className="hover:underline hover:text-primary transition-colors cursor-pointer"
-                    >
-                      {paciente.name}
-                    </Link>
-                  </td>
-                  <td className="p-4 align-middle text-muted-foreground">{paciente.cpf}</td>
-                  <td className="p-4 align-middle">{paciente.phone}</td>
-                  <td className="p-4 align-middle">
-                    {new Date(paciente.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="p-4 align-middle text-right">
-                    <button className="h-8 w-8 p-0 hover:bg-muted rounded-md inline-flex items-center justify-center">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
+                <tr key={paciente.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-4 font-medium text-gray-900">{paciente.name}</td>
+                  <td className="p-4 text-gray-600">{paciente.cpf}</td>
+                  <td className="p-4 text-gray-600">{paciente.phone}</td>
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Botão Ver Prontuário */}
+                      <Link 
+                        href={`/dashboard/pacientes/${paciente.id}`}
+                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-md transition-colors"
+                        title="Abrir Prontuário"
+                      >
+                         <FileText className="h-4 w-4" />
+                      </Link>
+
+                      {/* Botão Excluir (Formulário Server Action) */}
+                      <form action={deletePatient}>
+                          <input type="hidden" name="id" value={paciente.id} />
+                          <button 
+                            type="submit"
+                            className="p-2 hover:bg-red-50 text-red-600 rounded-md transition-colors"
+                            title="Excluir Paciente"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
+              {pacientes.length === 0 && (
+                <tr>
+                    <td colSpan={4} className="p-8 text-center text-gray-500">
+                        Nenhum paciente encontrado para "{query}".
+                    </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

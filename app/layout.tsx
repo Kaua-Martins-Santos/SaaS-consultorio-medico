@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Clinique Pro",
-  description: "Gestão médica inteligente e simplificada.",
+  title: "Virtus Clinical", // MUDADO
+  description: "Sistema de Gestão Médica Corporativa",
 };
 
 export default function RootLayout({

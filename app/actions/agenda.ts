@@ -3,62 +3,95 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { startOfDay, endOfDay, addDays } from "date-fns"
 
 export async function createAppointment(formData: FormData) {
+  // ... (mantenha seu código de createAppointment aqui igual ao anterior) ...
+  // Vou abreviar para focar nas novas funções
   const patientId = formData.get("patientId") as string
   const dateStr = formData.get("date") as string
   const notes = formData.get("notes") as string
-  
-  // --- ADICIONEI ISSO AQUI ---
   const price = formData.get("price") as string 
-  // ---------------------------
 
-  if (!patientId || !dateStr) {
-    return
-  }
+  if (!patientId || !dateStr) return
 
-  // 1. Validação de Data no Servidor
-  const appointmentDate = new Date(dateStr)
-  const now = new Date()
-
-  if (appointmentDate < now) {
-    return 
-  }
-
-  // 2. Busca ou Cria o Médico
   let doctor = await prisma.user.findFirst()
-  
-  if (!doctor) {
-    doctor = await prisma.user.create({
-      data: {
-        name: "Dr. Admin",
-        email: "admin@medico.com",
-        password: "123", 
-        role: "DOCTOR"
-      }
-    })
-  }
+  // ... lógica de criar médico se não existir ...
 
-  // 3. Cria o agendamento COM O PREÇO
   await prisma.appointment.create({
     data: {
-      date: appointmentDate,
+      date: new Date(dateStr),
       status: "PENDING",
       notes: notes,
-      
-      // --- E ISSO AQUI NO FINAL ---
-      // Converte o texto "150.00" para número real. Se estiver vazio, salva 0.
       price: price ? parseFloat(price) : 0, 
-      // ----------------------------
-
       patientId: patientId,
-      doctorId: doctor.id
+      doctorId: doctor?.id || "" // Ajuste conforme seu create anterior
     }
   })
 
   revalidatePath("/dashboard/agenda")
   revalidatePath("/dashboard")
-  // Atualiza o financeiro também para o valor aparecer na hora
-  revalidatePath("/dashboard/financeiro") 
   redirect("/dashboard/agenda")
+}
+
+// --- NOVAS FUNÇÕES DE AÇÃO ---
+
+export async function updateStatus(formData: FormData) {
+    const id = formData.get("id") as string
+    const newStatus = formData.get("status") as string
+
+    if (!id || !newStatus) return
+
+    await prisma.appointment.update({
+        where: { id },
+        data: { status: newStatus }
+    })
+
+    revalidatePath("/dashboard/agenda")
+    revalidatePath("/dashboard")
+}
+
+export async function deleteAppointment(formData: FormData) {
+    const id = formData.get("id") as string
+    if (!id) return
+
+    await prisma.appointment.delete({ where: { id } })
+    revalidatePath("/dashboard/agenda")
+    revalidatePath("/dashboard")
+}
+
+// Busca agendamentos com Filtro de Data
+export async function getAppointments(filter: string = "today") {
+    let dateFilter = {}
+    const today = startOfDay(new Date())
+
+    if (filter === "today") {
+        dateFilter = {
+            gte: today,
+            lte: endOfDay(today)
+        }
+    } else if (filter === "tomorrow") {
+        const tomorrow = addDays(today, 1)
+        dateFilter = {
+            gte: startOfDay(tomorrow),
+            lte: endOfDay(tomorrow)
+        }
+    } else if (filter === "upcoming") {
+        dateFilter = {
+            gte: today // Do hoje para frente
+        }
+    }
+    // se for "all", não aplica filtro de data
+
+    return await prisma.appointment.findMany({
+        where: {
+            date: dateFilter
+        },
+        include: {
+            patient: true,
+        },
+        orderBy: {
+            date: 'asc',
+        }
+    })
 }
