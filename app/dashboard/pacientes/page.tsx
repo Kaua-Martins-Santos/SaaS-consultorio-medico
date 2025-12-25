@@ -1,16 +1,25 @@
 import Link from "next/link";
 import { Search, Plus, MoreHorizontal, Filter } from "lucide-react";
+import { prisma } from "@/lib/prisma"; // Importamos nossa conexão com o banco
 
-export default function PacientesPage() {
+// Transformamos a página em async para poder buscar dados do banco
+export default async function PacientesPage() {
+  
+  // Busca os pacientes no banco de dados (ordenados por data de criação)
+  const pacientes = await prisma.patient.findMany({
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
   return (
     <div className="space-y-6">
-      {/* Cabeçalho da Página */}
+      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Pacientes</h2>
           <p className="text-muted-foreground">Gerencie seus pacientes e prontuários.</p>
         </div>
-        {/* Agora é um Link funcional */}
         <Link 
           href="/dashboard/pacientes/novo"
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -20,7 +29,7 @@ export default function PacientesPage() {
         </Link>
       </div>
 
-      {/* Barra de Filtros e Busca */}
+      {/* Barra de Busca */}
       <div className="flex items-center gap-2 rounded-lg border bg-card p-2 shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -43,60 +52,46 @@ export default function PacientesPage() {
               <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Nome</th>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">CPF</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Convênio</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Última Consulta</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Telefone</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Data Cadastro</th>
                 <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
-              {/* Mock de Dados - Linha 1 */}
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <td className="p-4 align-middle font-medium">Ana Maria Silva</td>
-                <td className="p-4 align-middle text-muted-foreground">123.456.789-00</td>
-                <td className="p-4 align-middle">Unimed</td>
-                <td className="p-4 align-middle">12/10/2023</td>
-                <td className="p-4 align-middle">
-                  <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Ativo</span>
-                </td>
-                <td className="p-4 align-middle text-right">
-                  <button className="h-8 w-8 p-0 hover:bg-muted rounded-md inline-flex items-center justify-center">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
               
-              {/* Mock de Dados - Linha 2 */}
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <td className="p-4 align-middle font-medium">Carlos Eduardo</td>
-                <td className="p-4 align-middle text-muted-foreground">987.654.321-11</td>
-                <td className="p-4 align-middle">Particular</td>
-                <td className="p-4 align-middle">10/09/2023</td>
-                <td className="p-4 align-middle">
-                  <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Ativo</span>
-                </td>
-                <td className="p-4 align-middle text-right">
-                  <button className="h-8 w-8 p-0 hover:bg-muted rounded-md inline-flex items-center justify-center">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+              {/* Se não tiver pacientes, mostra aviso amigável */}
+              {pacientes.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                    Nenhum paciente encontrado. Clique em "Novo Paciente" para começar.
+                  </td>
+                </tr>
+              )}
 
-              {/* Mock de Dados - Linha 3 */}
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <td className="p-4 align-middle font-medium">Mariana Souza</td>
-                <td className="p-4 align-middle text-muted-foreground">456.123.789-22</td>
-                <td className="p-4 align-middle">Bradesco Saúde</td>
-                <td className="p-4 align-middle">--</td>
-                <td className="p-4 align-middle">
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">Novo</span>
-                </td>
-                <td className="p-4 align-middle text-right">
-                  <button className="h-8 w-8 p-0 hover:bg-muted rounded-md inline-flex items-center justify-center">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+              {/* Loop para mostrar os pacientes reais */}
+              {pacientes.map((paciente) => (
+                <tr key={paciente.id} className="border-b transition-colors hover:bg-muted/50">
+                  {/* Célula do Nome agora é um LINK clicável */}
+                  <td className="p-4 align-middle font-medium">
+                    <Link 
+                      href={`/dashboard/pacientes/${paciente.id}`} 
+                      className="hover:underline hover:text-primary transition-colors cursor-pointer"
+                    >
+                      {paciente.name}
+                    </Link>
+                  </td>
+                  <td className="p-4 align-middle text-muted-foreground">{paciente.cpf}</td>
+                  <td className="p-4 align-middle">{paciente.phone}</td>
+                  <td className="p-4 align-middle">
+                    {new Date(paciente.createdAt).toLocaleDateString('pt-BR')}
+                  </td>
+                  <td className="p-4 align-middle text-right">
+                    <button className="h-8 w-8 p-0 hover:bg-muted rounded-md inline-flex items-center justify-center">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

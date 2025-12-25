@@ -1,98 +1,107 @@
 import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  Users, 
-  FileText, 
-  Settings, 
-  LogOut,
-  Stethoscope
-} from "lucide-react";
+import { LayoutDashboard, Calendar, Users, Settings, User, CircleDollarSign } from "lucide-react";
+import { getDoctorSettings } from "@/app/actions/settings";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  
+  // Buscamos os dados do médico no banco para mostrar no rodapé do menu
+  const doctor = await getDoctorSettings();
+
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/20">
-      {/* Sidebar (Barra Lateral) */}
-      <aside className="hidden w-64 flex-col border-r bg-card text-card-foreground md:flex shadow-sm z-10">
-        
-        {/* Logo da Clínica */}
-        <div className="flex h-16 items-center border-b px-6">
-          <div className="flex items-center gap-2 font-bold text-primary">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Stethoscope className="h-5 w-5" />
+    <div className="flex min-h-screen flex-col md:flex-row md:overflow-hidden">
+      
+      {/* SIDEBAR (Menu Lateral) */}
+      <div className="w-full flex-none md:w-64 bg-white border-r">
+        <div className="flex h-full flex-col px-3 py-4 md:px-2">
+          
+          {/* Logo / Título */}
+          <Link
+            className="mb-2 flex h-20 items-end justify-start rounded-md bg-primary p-4 md:h-20"
+            href="/dashboard"
+          >
+            <div className="w-32 text-white md:w-40">
+              <span className="text-xl font-bold">Clinique Pro</span>
             </div>
-            <span>Clinique Pro</span>
-          </div>
-        </div>
-
-        {/* Menu de Navegação */}
-        <nav className="flex-1 space-y-1 p-4">
-          <Link 
-            href="/dashboard" 
-            className="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Visão Geral
           </Link>
 
-          <Link 
-            href="/dashboard/agenda" 
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <CalendarDays className="h-4 w-4" />
-            Agenda
-          </Link>
-
-          <Link 
-            href="/dashboard/pacientes" 
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <Users className="h-4 w-4" />
-            Pacientes
-          </Link>
-
-          <div className="pt-4 mt-4 border-t border-border">
-            <Link 
-              href="/dashboard/configuracoes" 
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          {/* Links de Navegação */}
+          <div className="flex grow flex-row justify-between space-x-2 md:flex-col md:space-x-0 md:space-y-2 mt-4">
+            
+            {/* 1. Visão Geral */}
+            <Link
+              href="/dashboard"
+              className="flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
             >
-              <Settings className="h-4 w-4" />
-              Configurações
+              <LayoutDashboard className="w-6" />
+              <p className="hidden md:block">Visão Geral</p>
             </Link>
-           </div>
-        </nav>
 
-        {/* Rodapé da Sidebar (Perfil) */}
-        <div className="border-t p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-              DR
+            {/* 2. Agenda */}
+            <Link
+              href="/dashboard/agenda"
+              className="flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
+            >
+              <Calendar className="w-6" />
+              <p className="hidden md:block">Agenda</p>
+            </Link>
+
+            {/* 3. Pacientes */}
+            <Link
+              href="/dashboard/pacientes"
+              className="flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
+            >
+              <Users className="w-6" />
+              <p className="hidden md:block">Pacientes</p>
+            </Link>
+
+            {/* 4. FINANCEIRO (Novo!) */}
+            <Link
+              href="/dashboard/financeiro"
+              className="flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
+            >
+              <CircleDollarSign className="w-6" />
+              <p className="hidden md:block">Financeiro</p>
+            </Link>
+            
+            {/* 5. Configurações */}
+            <Link
+              href="/dashboard/configuracoes"
+              className="flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
+            >
+              <Settings className="w-6" />
+              <p className="hidden md:block">Configurações</p>
+            </Link>
+
+            <div className="hidden h-auto w-full grow rounded-md bg-gray-50 md:block"></div>
+            
+            {/* RODAPÉ DO MÉDICO (Perfil) */}
+            <div className="flex items-center gap-3 rounded-lg bg-gray-100 p-3 shadow-sm mt-auto">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white">
+                   {/* Pega a inicial do nome ou usa 'D' */}
+                   <span className="font-bold">{doctor?.name?.charAt(0) || "D"}</span>
+                </div>
+                <div className="flex-1 overflow-hidden hidden md:block">
+                   <p className="truncate text-sm font-bold text-gray-900">
+                     {doctor?.name || "Dr. Admin"}
+                   </p>
+                   <p className="truncate text-xs text-gray-500">
+                     {doctor?.specialty || "Médico"}
+                   </p>
+                </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Dr. André</span>
-              <span className="text-xs text-muted-foreground">Médico Admin</span>
-            </div>
+
           </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Área Principal de Conteúdo */}
-      <main className="flex-1 overflow-y-auto">
-        <header className="flex h-16 items-center justify-between border-b bg-card px-6 shadow-sm">
-          <h1 className="text-lg font-semibold text-foreground">Visão Geral</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Hoje, 12 Outubro</span>
-          </div>
-        </header>
-        
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
+      {/* ÁREA PRINCIPAL */}
+      <div className="flex-grow p-6 md:overflow-y-auto md:p-12">
+        {children}
+      </div>
     </div>
   );
 }
