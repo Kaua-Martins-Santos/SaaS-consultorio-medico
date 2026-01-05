@@ -12,10 +12,11 @@ interface ReceitaProps {
   clinicName: string;
   clinicAddress: string;
   clinicPhone: string;
+  clinicLogo?: string | null; // Adicionado
 }
 
 export default function ReceitaSimples({ 
-  patientId, patientName, doctorName, crm, clinicName, clinicAddress, clinicPhone 
+  patientId, patientName, doctorName, crm, clinicName, clinicAddress, clinicPhone, clinicLogo 
 }: ReceitaProps) {
   
   const [content, setContent] = useState(
@@ -75,50 +76,66 @@ export default function ReceitaSimples({
       </div>
 
       {/* --- FOLHA DE PAPEL A4 --- */}
-      {/* Adicionei o ID 'folha-receita' para o CSS achar ele fácil */}
-      <div id="folha-receita" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-[20mm] relative">
+      {/* 1. Adicionei 'overflow-hidden' aqui */}
+      <div id="folha-receita" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-[20mm] relative overflow-hidden">
         
-        {/* Cabeçalho */}
-        <header className="flex justify-between items-start border-b-2 border-gray-800 pb-4 mb-8">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wider">{clinicName}</h1>
-                <p className="text-sm font-semibold text-gray-600 mt-1">{doctorName}</p>
-                <p className="text-xs text-gray-500">CRM {crm || "---"}</p>
+        {/* 2. NOVA LÓGICA DA MARCA D'ÁGUA (Fica no fundo) */}
+        {clinicLogo && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                    src={clinicLogo} 
+                    alt="Marca d'água" 
+                    className="w-2/3 opacity-10" /*--- basta adicionar grayscale após o 10 caso queira em escala de cinza a logo---*/
+                />
             </div>
-            <div className="text-right text-xs text-gray-500 max-w-[200px]">
-                <p>{clinicAddress}</p>
-                <p className="mt-1">{clinicPhone}</p>
+        )}
+
+        {/* 3. CONTEÚDO ENVELOPADO (z-index maior para ficar na frente da imagem) */}
+        <div className="relative z-10 h-full flex flex-col">
+            
+            {/* Cabeçalho */}
+            <header className="flex justify-between items-start border-b-2 border-gray-800 pb-4 mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wider">{clinicName}</h1>
+                    <p className="text-sm font-semibold text-gray-600 mt-1">{doctorName}</p>
+                    <p className="text-xs text-gray-500">CRM {crm || "---"}</p>
+                </div>
+                <div className="text-right text-xs text-gray-500 max-w-[200px]">
+                    <p>{clinicAddress}</p>
+                    <p className="mt-1">{clinicPhone}</p>
+                </div>
+            </header>
+
+            {/* Título */}
+            <div className="text-center mb-10">
+                <h2 className="text-lg font-bold uppercase underline decoration-2 underline-offset-4">Receituário Médico</h2>
             </div>
-        </header>
 
-        {/* Título */}
-        <div className="text-center mb-10">
-            <h2 className="text-lg font-bold uppercase underline decoration-2 underline-offset-4">Receituário Médico</h2>
-        </div>
+            {/* Área de Texto */}
+            <textarea 
+                className="w-full h-[150mm] resize-none outline-none text-lg leading-loose text-gray-900 font-serif bg-transparent placeholder:text-gray-300 border-none focus:ring-0 p-0"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                spellCheck={false}
+            />
 
-        {/* Área de Texto */}
-        <textarea 
-            className="w-full h-[150mm] resize-none outline-none text-lg leading-loose text-gray-900 font-serif bg-transparent placeholder:text-gray-300 border-none focus:ring-0 p-0"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            spellCheck={false}
-        />
-
-        {/* Rodapé */}
-        <footer className="absolute bottom-[20mm] left-[20mm] right-[20mm]">
-            <div className="flex flex-col items-center gap-8">
-                <div className="flex justify-between w-full items-end">
-                    <p className="text-sm text-gray-600 italic">
-                        {clinicAddress ? clinicAddress.split(',')[0] : 'Local'}, {dataAtual}.
-                    </p>
-                    <div className="text-center">
-                        <div className="w-48 border-t border-gray-900 mb-1"></div>
-                        <p className="text-xs text-gray-500 uppercase">Assinatura</p>
+            {/* Rodapé */}
+            <footer className="absolute bottom-0 left-0 right-0"> {/* Ajustei o posicionamento relativo ao container interno */}
+                <div className="flex flex-col items-center gap-8">
+                    <div className="flex justify-between w-full items-end">
+                        <p className="text-sm text-gray-600 italic">
+                            {clinicAddress ? clinicAddress.split(',')[0] : 'Local'}, {dataAtual}.
+                        </p>
+                        <div className="text-center">
+                            <div className="w-48 border-t border-gray-900 mb-1"></div>
+                            <p className="text-xs text-gray-500 uppercase">Assinatura</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </footer>
+            </footer>
 
+        </div>
       </div>
     </div>
   );

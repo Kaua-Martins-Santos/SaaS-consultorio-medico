@@ -19,6 +19,7 @@ model User {
   clinicName    String?   @default("Virtus Clinical")
   clinicAddress String?   @default("Endereço não configurado")
   clinicPhone   String?   @default("(00) 0000-0000")
+  clinicLogo    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

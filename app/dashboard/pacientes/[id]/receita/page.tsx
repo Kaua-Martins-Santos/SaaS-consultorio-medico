@@ -25,6 +25,7 @@ export default async function ReceitaPage({ params }: { params: Promise<{ id: st
       clinicName={doctor?.clinicName || "Consultório Médico"}
       clinicAddress={doctor?.clinicAddress || "Endereço não configurado"}
       clinicPhone={doctor?.clinicPhone || "Telefone não configurado"}
+      clinicLogo={doctor?.clinicLogo}
     />
   );
 }

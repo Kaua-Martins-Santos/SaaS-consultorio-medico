@@ -5,8 +5,6 @@ import { revalidatePath } from "next/cache"
 
 // Busca os dados do médico atual
 export async function getDoctorSettings() {
-  // Em produção, pegaria o ID da sessão. 
-  // Aqui pegamos o primeiro usuário (Admin)
   return await prisma.user.findFirst()
 }
 
@@ -18,8 +16,10 @@ export async function updateSettings(formData: FormData) {
   const clinicName = formData.get("clinicName") as string
   const clinicAddress = formData.get("clinicAddress") as string
   const clinicPhone = formData.get("clinicPhone") as string
+  
+  // AQUI: Pegamos o campo novo que vinha do formulário mas era ignorado
+  const clinicLogo = formData.get("clinicLogo") as string 
 
-  // Pega o ID do médico (mesma lógica do get)
   const doctor = await prisma.user.findFirst()
 
   if (!doctor) return
@@ -32,11 +32,12 @@ export async function updateSettings(formData: FormData) {
       crm,
       clinicName,
       clinicAddress,
-      clinicPhone
+      clinicPhone,
+      clinicLogo // AQUI: Mandamos salvar no banco
     }
   })
 
-  // Atualiza todas as páginas para refletir a mudança
+  // Atualiza as páginas
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/configuracoes")
   revalidatePath("/dashboard/agenda")
