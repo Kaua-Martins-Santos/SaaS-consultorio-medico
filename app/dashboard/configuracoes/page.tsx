@@ -1,126 +1,122 @@
-import { updateSettings, getDoctorSettings } from "@/app/actions/settings";
-import { Save, User, MapPin, Building, Phone, ImageIcon } from "lucide-react"; // Adicionei ImageIcon aqui opcionalmente
+import { getDoctorSettings, updateSettings } from "@/app/actions/settings";
+import { Save, Building2, User, Phone, MapPin } from "lucide-react";
 
-export default async function ConfiguracoesPage() {
+export default async function SettingsPage() {
   const doctor = await getDoctorSettings();
+
+  if (!doctor) return <div>Erro ao carregar configurações. Faça login novamente.</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900">Configurações</h2>
-        <p className="text-muted-foreground">Gerencie seus dados pessoais e informações da clínica.</p>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-800">Configurações</h2>
+        <p className="text-gray-500">Gerencie seu perfil e os dados da sua clínica.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border p-8">
-        <form action={updateSettings} className="space-y-8">
+      <form action={updateSettings} className="space-y-8">
+        
+        {/* SEÇÃO 1: DADOS DO MÉDICO */}
+        <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-700 border-b pb-2">
+                <User className="w-5 h-5 text-blue-500" /> 
+                Dados do Profissional
+            </h3>
             
-            {/* Seção 1: Dados do Médico */}
-            <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-primary">
-                    <User className="w-5 h-5" /> Dados do Profissional
-                </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Nome Completo</label>
-                        <input 
-                            name="name" 
-                            defaultValue={doctor?.name} 
-                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Especialidade</label>
-                        <input 
-                            name="specialty" 
-                            defaultValue={doctor?.specialty || ""} 
-                            placeholder="Ex: Cardiologista"
-                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">CRM</label>
-                        <input 
-                            name="crm" 
-                            defaultValue={doctor?.crm || ""} 
-                            placeholder="Ex: 123456/SP"
-                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        />
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                    <input 
+                        name="name" 
+                        defaultValue={doctor.name} 
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Especialidade</label>
+                    <input 
+                        name="specialty" 
+                        defaultValue={doctor.specialty || ""} 
+                        placeholder="Ex: Cardiologista"
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CRM / Registro</label>
+                    <input 
+                        name="crm" 
+                        defaultValue={doctor.crm || ""} 
+                        placeholder="00000-UF"
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
                 </div>
             </div>
+        </div>
 
-            <div className="h-px bg-gray-100 my-4" />
-
-            {/* Seção 2: Dados da Clínica */}
-            <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-primary">
-                    <Building className="w-5 h-5" /> Informações da Clínica
+        {/* SEÇÃO 2: DADOS DA CLÍNICA */}
+        <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+            <div className="flex justify-between items-center border-b pb-2">
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-700">
+                    <Building2 className="w-5 h-5 text-blue-500" /> 
+                    Dados da Clínica
                 </h3>
-                <div className="grid gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Nome da Clínica</label>
-                        <input 
-                            name="clinicName" 
-                            defaultValue={doctor?.clinicName || ""} 
-                            placeholder="Ex: Virtus Clinical"
-                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        />
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <MapPin className="w-3 h-3" /> Endereço Completo
-                            </label>
-                            <input 
-                                name="clinicAddress" 
-                                defaultValue={doctor?.clinicAddress || ""} 
-                                placeholder="Rua, Número - Cidade/UF"
-                                className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <Phone className="w-3 h-3" /> Telefone Comercial
-                            </label>
-                            <input 
-                                name="clinicPhone" 
-                                defaultValue={doctor?.clinicPhone || ""} 
-                                placeholder="(00) 0000-0000"
-                                className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    {/* --- AQUI ESTÁ A ADIÇÃO Do passo de adição logo --- */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                             URL da Logo (Marca D'água)
-                        </label>
-                        <input 
-                            name="clinicLogo" 
-                            // @ts-ignore (Caso o TS reclame antes de você rodar o prisma generate)
-                            defaultValue={doctor?.clinicLogo || ""} 
-                            placeholder="Ex: https://minhaclinica.com/logo.png"
-                            className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        />
-                        <p className="text-xs text-gray-500">
-                            Cole o link de uma imagem (PNG ou JPG) para aparecer no fundo da receita.
-                        </p>
-                    </div>
-                    {/* -------------------------------------- */}
-
-                </div>
+                {/* 🗑️ REMOVIDO O SELO "PLANO PRO" AQUI */}
             </div>
 
-            <button 
-                type="submit" 
-                className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-primary/90 transition-all ml-auto"
-            >
-                <Save className="w-4 h-4" /> Salvar Alterações
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Clínica</label>
+                    <input 
+                        name="clinicName" 
+                        defaultValue={doctor.tenant?.name || ""} 
+                        placeholder="Nome fantasia da clínica"
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp</label>
+                    <input 
+                        name="clinicPhone" 
+                        defaultValue={doctor.tenant?.whatsappPhone || ""} 
+                        placeholder="(00) 00000-0000"
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+                 
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input 
+                        name="clinicLogo" 
+                        defaultValue={doctor.tenant?.logoUrl || ""} 
+                        placeholder="https://..."
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+
+                {/* ✅ ENDEREÇO AGORA ESTÁ ATIVO */}
+                <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" /> Endereço Completo
+                    </label>
+                    <input 
+                        name="clinicAddress"
+                        // Atenção aqui: Lendo do novo campo tenant.address (se você rodou o db push)
+                        // @ts-ignore - Caso o TS reclame antes do deploy
+                        defaultValue={doctor.tenant?.address || ""}
+                        placeholder="Rua, Número, Bairro, Cidade - UF"
+                        className="w-full border rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <div className="flex justify-end">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all flex items-center gap-2">
+                <Save className="w-5 h-5" />
+                Salvar Alterações
             </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }

@@ -3,67 +3,265 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql" // Alterado para Postgres para suportar Enums e JSON
+  url      = env("DATABASE_URL")
 }
 
-// Usuários do sistema (Médicos/Secretárias)
-model User {
-  id            String    @id @default(cuid())
+// --------------------------------------------------------
+// ENUMS (Padronização e Integridade de Dados)
+// --------------------------------------------------------
+
+enum UserRole {
+  OWNER     // Dono da Clínica (acesso total + financeiro)
+  DOCTOR    // Médico (acesso aos seus pacientes/agenda)
+  SECRETARY // Secretária (acesso à agenda de todos)
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW // Paciente não compareceu
+}
+
+enum TransactionType {
+  INCOME  // Receita (Consulta)
+  EXPENSE // Despesa (Aluguel, Luz, etc.)
+}
+
+enum NotificationType {
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// --------------------------------------------------------
+// MULTI-TENANCY CORE
+// --------------------------------------------------------
+
+// A "Clínica" ou "Organização". O coração do SaaS.
+model Tenant {
+  id            String   @id @default(cuid())
   name          String
-  email         String    @unique
-  password      String
-  role          String    @default("DOCTOR")
-  specialty     String?   
-  crm           String?
-  clinicName    String?   @default("Virtus Clinical")
-  clinicAddress String?   @default("Endereço não configurado")
-  clinicPhone   String?   @default("(00) 0000-0000")
-  clinicLogo    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  slug          String   @unique // URL pública: seusaas.com/agendamento/SLUG
+  plan          String   @default("FREE") // Controle de planos SaaS (Free, Pro, Enterprise)
+
+  address       String?
   
+  // White-label & Configurações
+  logoUrl       String?
+  primaryColor  String?  @default("#000000")
+  whatsappPhone String?  // Número oficial da clínica para envio de mensagens
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos (Tudo pertence a um Tenant)
+  users         User[]
+  patients      Patient[]
   appointments  Appointment[]
+  finance       FinancialRecord[]
+  services      Service[]
+  notifications NotificationLog[]
 }
 
-// Pacientes
+// Usuários do SaaS (Médicos, Secretárias, Administradores)
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password      String   // Hash
+  phone         String?
+  role          UserRole @default(DOCTOR)
+  
+  // Dados específicos de médico
+  crm           String?
+  specialty     String?
+  
+  // Multi-tenancy
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  // Relacionamentos
+  appointments  Appointment[] // Consultas onde ele é o médico
+  availabilities Availability[] // Horários de atendimento deste médico
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// --------------------------------------------------------
+// PACIENTES & PRONTUÁRIO (PEP)
+// --------------------------------------------------------
+
 model Patient {
   id            String    @id @default(cuid())
   name          String
-  email         String?  
-  cpf           String    @unique
-  phone         String
+  email         String?
+  phone         String    // Crucial para WhatsApp
+  cpf           String?   // Removido @unique global, pois o mesmo paciente pode existir em tenants diferentes. 
+                            // A unicidade deve ser composta: [cpf, tenantId]
   birthDate     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  address       String?
+  
+  // Multi-tenancy
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
 
+  // Relacionamentos
   appointments  Appointment[]
   records       MedicalRecord[]
-}
-
-// Agendamentos
-model Appointment {
-  id            String    @id @default(cuid())
-  date          DateTime
-  status        String    @default("PENDING") // Mudamos de Enum para String
-  notes         String?
-  price         Decimal   @default(0.00)
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  doctorId      String
-  doctor        User      @relation(fields: [doctorId], references: [id])
-  patientId     String
-  patient       Patient   @relation(fields: [patientId], references: [id])
+  @@unique([cpf, tenantId]) // Garante unicidade apenas DENTRO da mesma clínica
 }
 
-// Prontuário
 model MedicalRecord {
-  id            String    @id @default(cuid())
-  description   String    // Removemos o @db.Text (SQLite aceita texto longo por padrão)
-  prescription  String?   // Removemos o @db.Text
-  createdAt     DateTime  @default(now())
+  id            String   @id @default(cuid())
+  
+  // Conteúdo Básico
+  description   String   @db.Text // Queixa principal / Evolução
+  prescription  String?  @db.Text // Receita simples texto
+  
+  // PEP Avançado (Campos Dinâmicos)
+  // Ex: { "fumante": true, "historico_familiar": "diabetes", "altura": 180 }
+  anamnesisData Json?    
+  
+  // Relacionamentos
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  
+  doctorId      String
+  
+  // Arquivos (Exames, PDF, Raio-X)
+  attachments   Attachment[]
 
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Attachment {
+  id              String        @id @default(cuid())
+  name            String        // Nome original do arquivo
+  url             String        // URL do S3/Blob Storage
+  type            String        // mime-type: application/pdf, image/png
+  
+  medicalRecordId String
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime      @default(now())
+}
+
+// --------------------------------------------------------
+// AGENDAMENTO & SERVIÇOS
+// --------------------------------------------------------
+
+// Tipos de consulta (Ex: "Consulta Rotina - 30min", "Retorno - 15min")
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  durationMin Int      // Duração em minutos para bloquear a agenda
+  price       Decimal  @db.Decimal(10, 2)
+  
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  appointments Appointment[]
+  
+  active      Boolean  @default(true)
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  date          DateTime          // Data e Hora de início
+  status        AppointmentStatus @default(PENDING)
+  notes         String?
+  
+  // Financeiro vinculado (se gerado)
+  price         Decimal           @default(0.00) @db.Decimal(10, 2)
+  
+  // Relacionamentos
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  
   patientId     String
   patient       Patient   @relation(fields: [patientId], references: [id])
+  
+  doctorId      String
+  doctor        User      @relation(fields: [doctorId], references: [id])
+  
+  serviceId     String?
+  service       Service?  @relation(fields: [serviceId], references: [id])
+
+  notifications NotificationLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Disponibilidade para Agendamento Externo
+model Availability {
+  id        String   @id @default(cuid())
+  dayOfWeek Int      // 0=Dom, 1=Seg, ..., 6=Sab
+  startTime String   // "08:00"
+  endTime   String   // "18:00"
+  
+  userId    String   // Médico
+  user      User     @relation(fields: [userId], references: [id])
+  
+  // Bloqueio de almoço, etc. pode ser adicionado aqui ou em outra tabela
+}
+
+// --------------------------------------------------------
+// FINANCEIRO COMPLETO
+// --------------------------------------------------------
+
+model FinancialRecord {
+  id          String          @id @default(cuid())
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  type        TransactionType // INCOME ou EXPENSE
+  category    String          // Ex: "Consulta", "Aluguel", "Material"
+  date        DateTime        @default(now())
+  
+  // Status de pagamento
+  status      String          @default("PAID") // PENDING, PAID, OVERDUE
+  
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// --------------------------------------------------------
+// INTEGRAÇÕES & LOGS (WhatsApp)
+// --------------------------------------------------------
+
+model NotificationLog {
+  id            String       @id @default(cuid())
+  type          String       @default("WHATSAPP") // "WHATSAPP", "EMAIL"
+  status        String       @default("PENDING")  // "PENDING", "SENT", "FAILED"
+  recipient     String       // Telefone ou Email
+  content       String       // O texto da mensagem
+  externalId    String?      // ID do gateway (Twilio/Z-API)
+
+  // Relacionamento com Agendamento (Opcional, pois pode ser aviso avulso)
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  
+  // Relacionamento com a Clínica (Obrigatório)
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  
+  createdAt     DateTime     @default(now())
 }

@@ -4,10 +4,22 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { startOfDay, endOfDay, addDays } from "date-fns"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+
+// Helper para pegar a sessão do usuário logado
+async function getSession() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return null
+  return session.user
+}
 
 export async function createAppointment(formData: FormData) {
-  // ... (mantenha seu código de createAppointment aqui igual ao anterior) ...
-  // Vou abreviar para focar nas novas funções
+  const user = await getSession()
+  
+  // Se não estiver logado, não deixa criar
+  if (!user) return 
+
   const patientId = formData.get("patientId") as string
   const dateStr = formData.get("date") as string
   const notes = formData.get("notes") as string
@@ -15,9 +27,7 @@ export async function createAppointment(formData: FormData) {
 
   if (!patientId || !dateStr) return
 
-  let doctor = await prisma.user.findFirst()
-  // ... lógica de criar médico se não existir ...
-
+  // CORREÇÃO: Agora passamos o tenantId obrigatório
   await prisma.appointment.create({
     data: {
       date: new Date(dateStr),
@@ -25,7 +35,14 @@ export async function createAppointment(formData: FormData) {
       notes: notes,
       price: price ? parseFloat(price) : 0, 
       patientId: patientId,
-      doctorId: doctor?.id || "" // Ajuste conforme seu create anterior
+      
+      // 1. Vincula ao médico logado (sessão)
+      // @ts-ignore
+      doctorId: user.id,
+
+      // 2. Vincula à Clínica (Tenant) - RESOLVE O ERRO
+      // @ts-ignore
+      tenantId: user.tenantId 
     }
   })
 
@@ -34,17 +51,25 @@ export async function createAppointment(formData: FormData) {
   redirect("/dashboard/agenda")
 }
 
-// --- NOVAS FUNÇÕES DE AÇÃO ---
+// --- OUTRAS FUNÇÕES (Também precisam de proteção por Tenant) ---
 
 export async function updateStatus(formData: FormData) {
+    const user = await getSession()
+    if (!user) return
+
     const id = formData.get("id") as string
     const newStatus = formData.get("status") as string
 
     if (!id || !newStatus) return
 
+    // Garante que só edita se for da mesma clínica
     await prisma.appointment.update({
-        where: { id },
-        data: { status: newStatus }
+        where: { 
+            id,
+            // @ts-ignore
+            tenantId: user.tenantId // Filtro de segurança
+        },
+        data: { status: newStatus as any }
     })
 
     revalidatePath("/dashboard/agenda")
@@ -52,16 +77,28 @@ export async function updateStatus(formData: FormData) {
 }
 
 export async function deleteAppointment(formData: FormData) {
+    const user = await getSession()
+    if (!user) return
+
     const id = formData.get("id") as string
     if (!id) return
 
-    await prisma.appointment.delete({ where: { id } })
+    await prisma.appointment.delete({ 
+        where: { 
+            id, 
+            // @ts-ignore
+            tenantId: user.tenantId // Filtro de segurança
+        } 
+    })
+    
     revalidatePath("/dashboard/agenda")
     revalidatePath("/dashboard")
 }
 
-// Busca agendamentos com Filtro de Data
 export async function getAppointments(filter: string = "today") {
+    const user = await getSession()
+    if (!user) return []
+
     let dateFilter = {}
     const today = startOfDay(new Date())
 
@@ -78,13 +115,14 @@ export async function getAppointments(filter: string = "today") {
         }
     } else if (filter === "upcoming") {
         dateFilter = {
-            gte: today // Do hoje para frente
+            gte: today
         }
     }
-    // se for "all", não aplica filtro de data
 
     return await prisma.appointment.findMany({
         where: {
+            // @ts-ignore
+            tenantId: user.tenantId, // CRÍTICO: Só mostra agenda desta clínica
             date: dateFilter
         },
         include: {
