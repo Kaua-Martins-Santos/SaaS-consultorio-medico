@@ -1,101 +1,147 @@
-import { prisma } from "@/lib/prisma";
-import { DollarSign, TrendingUp, Calendar, User } from "lucide-react";
+import { getFinancialMetrics } from "@/app/actions/financeiro"
+import { NewExpenseDialog } from "./new-expense-dialog"
+import { DeleteExpenseButton } from "./delete-expense-button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
 
 export default async function FinanceiroPage() {
-  // 1. Soma Total (Faturamento)
-  const faturamento = await prisma.appointment.aggregate({
-    _sum: { price: true }
-  });
-  const total = Number(faturamento._sum.price || 0);
-
-  // 2. Busca o histórico de consultas (apenas as que têm valor > 0)
-  const consultasPagas = await prisma.appointment.findMany({
-    where: {
-      price: { gt: 0 } // Apenas onde o preço é maior que 0
-    },
-    include: {
-      patient: true // Traz o nome do paciente
-    },
-    orderBy: {
-      date: 'desc' // Mais recentes primeiro
-    }
-  });
+  const { totalRevenue, totalExpenses, netProfit, transactions } = await getFinancialMetrics()
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Financeiro</h2>
-        <p className="text-muted-foreground">Gestão de faturamento e receitas.</p>
-      </div>
-
-      {/* Card de Destaque (O Valor Total) */}
-      <div className="rounded-xl border bg-green-50/50 border-green-100 p-8 shadow-sm">
-        <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                <DollarSign className="h-6 w-6" />
-            </div>
-            <div>
-                <p className="text-sm font-medium text-green-600">Faturamento Total</p>
-                <h3 className="text-3xl font-bold text-green-700">
-                    {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
-                </h3>
-            </div>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Gestão Financeira</h2>
+        <div className="flex items-center space-x-2">
+          <NewExpenseDialog />
         </div>
       </div>
 
-      {/* Tabela de Detalhes */}
-      <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-6 border-b">
-            <h3 className="font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Histórico de Receitas
-            </h3>
-        </div>
-        <div className="relative w-full overflow-auto">
-          <table className="w-full caption-bottom text-sm">
-            <thead className="[&_tr]:border-b">
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Data</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Paciente</th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Serviço/Obs</th>
-                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {consultasPagas.length === 0 && (
-                 <tr>
-                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                        Nenhuma receita registrada ainda.
-                    </td>
-                 </tr>
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+            <div className="h-4 w-4 text-emerald-500">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              {formatCurrency(totalRevenue)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total de consultas realizadas
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+            <div className="h-4 w-4 text-red-500">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(totalExpenses)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Custos operacionais
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
+            <div className="h-4 w-4 text-muted-foreground">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              {formatCurrency(netProfit)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Resultado do período
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabela Unificada */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Extrato Unificado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Categoria / Método</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.length > 0 ? (
+                transactions.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      {format(t.date, "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className="font-medium">{t.description}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {t.categoryOrMethod}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={t.type === 'INCOME' ? 'default' : 'destructive'} 
+                             className={t.type === 'INCOME' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}>
+                        {t.type === 'INCOME' ? 'Entrada' : 'Saída'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {t.type === 'INCOME' ? '+' : '-'} {formatCurrency(t.amount)}
+                    </TableCell>
+                    <TableCell>
+                      {t.type === 'EXPENSE' && (
+                        <DeleteExpenseButton id={t.id} />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    Nenhuma movimentação encontrada.
+                  </TableCell>
+                </TableRow>
               )}
-
-              {consultasPagas.map((item) => (
-                <tr key={item.id} className="border-b transition-colors hover:bg-muted/50">
-                  <td className="p-4 align-middle">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {new Date(item.date).toLocaleDateString('pt-BR')}
-                    </div>
-                  </td>
-                  <td className="p-4 align-middle font-medium">
-                    <div className="flex items-center gap-2">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        {item.patient.name}
-                    </div>
-                  </td>
-                  <td className="p-4 align-middle text-muted-foreground">
-                    {item.notes || "Consulta de Rotina"}
-                  </td>
-                  <td className="p-4 align-middle text-right font-medium text-green-600">
-                    + {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.price))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
