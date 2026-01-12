@@ -1,7 +1,7 @@
 'use server'
 
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route" // Importa sua config de auth v4
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { ExpenseCategory } from "@prisma/client"
@@ -23,15 +23,12 @@ export type FinancialMetrics = {
 }
 
 export async function createExpense(formData: FormData) {
-  // Correção para NextAuth v4
   const session = await getServerSession(authOptions)
   
-  // Verifica se o usuário tem o ID do banco (adaptado para como o NextAuth v4 costuma retornar)
   if (!session?.user?.email) {
     throw new Error("Não autorizado")
   }
 
-  // Busca o usuário no banco para garantir o tenantId
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     select: { tenantId: true }
@@ -110,7 +107,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
   const appointments = await prisma.appointment.findMany({
     where: {
       tenantId,
-      status: { not: 'CANCELLED' }, // Verifique se no seu banco é CANCELLED ou CANCELED
+      status: { not: 'CANCELLED' },
     },
     select: {
       id: true,
