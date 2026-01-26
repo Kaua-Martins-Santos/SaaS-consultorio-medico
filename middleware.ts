@@ -1,6 +1,12 @@
-// middleware.ts
-// export { default } from "next-auth/middleware"
-// export const config = { matcher: ["/dashboard/:path*"] }
-export function middleware() {
-    // Middleware desativado para teste
+import { withAuth } from "next-auth/middleware"
+
+export default withAuth({
+  pages: {
+    signIn: "/login",
+  },
+})
+
+export const config = {
+  // Protege tudo que estiver dentro de /dashboard
+  matcher: ["/dashboard/:path*"],
 }
