@@ -15,7 +15,8 @@ export async function getDoctorSettings() {
   return await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      tenant: true // Traz os dados da clínica junto
+      tenant: true,
+      availabilities: true // AGORA TRAZEMOS OS HORÁRIOS TAMBÉM
     }
   })
 }
@@ -29,38 +30,65 @@ export async function updateSettings(formData: FormData) {
   // @ts-ignore
   const tenantId = session.user.tenantId
 
-  // 1. Dados do Médico
+  // 1. Dados Básicos
   const name = formData.get("name") as string
   const specialty = formData.get("specialty") as string
   const crm = formData.get("crm") as string
-
-  // 2. Dados da Clínica
   const clinicName = formData.get("clinicName") as string
   const clinicPhone = formData.get("clinicPhone") as string
   const clinicLogo = formData.get("clinicLogo") as string
-  const clinicAddress = formData.get("clinicAddress") as string // <--- Novo
+  const clinicAddress = formData.get("clinicAddress") as string
 
   try {
-    // Atualiza o Médico
+    // A. Atualiza Perfil e Clínica
     await prisma.user.update({
       where: { id: userId },
       data: { name, specialty, crm }
     })
 
-    // Atualiza a Clínica (Tenant)
     await prisma.tenant.update({
       where: { id: tenantId },
       data: {
         name: clinicName,
         whatsappPhone: clinicPhone,
         logoUrl: clinicLogo,
-        address: clinicAddress // <--- Salvando o endereço agora!
+        address: clinicAddress
       }
     })
 
+    // B. Atualiza Horários de Atendimento (Estratégia: Limpar e Recriar)
+    // Primeiro, deletamos todos os horários antigos desse médico
+    await prisma.availability.deleteMany({
+      where: { userId: userId }
+    })
+
+    // Agora criamos os novos baseado no formulário
+    const diasDaSemana = [0, 1, 2, 3, 4, 5, 6]; // 0=Domingo, 1=Segunda...
+    const novosHorarios = [];
+
+    for (const dia of diasDaSemana) {
+        const ativo = formData.get(`day_${dia}_active`) === "on";
+        const inicio = formData.get(`day_${dia}_start`) as string;
+        const fim = formData.get(`day_${dia}_end`) as string;
+
+        if (ativo && inicio && fim) {
+            novosHorarios.push({
+                userId,
+                dayOfWeek: dia,
+                startTime: inicio,
+                endTime: fim
+            });
+        }
+    }
+
+    if (novosHorarios.length > 0) {
+        await prisma.availability.createMany({
+            data: novosHorarios
+        });
+    }
+
     revalidatePath("/dashboard")
     revalidatePath("/dashboard/configuracoes")
-    revalidatePath("/dashboard/agenda")
     
     return { success: true }
 

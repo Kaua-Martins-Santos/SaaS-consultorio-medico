@@ -2,134 +2,167 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
-import { startOfDay, endOfDay, addDays } from "date-fns"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { parseISO, isValid, startOfDay, endOfDay } from "date-fns"
 
-// Helper para pegar a sessão do usuário logado
-async function getSession() {
+// --- LISTAR AGENDAMENTOS (CORRIGIDO PARA FILTROS) ---
+export async function getAppointments(filterMode: string = "today") {
   const session = await getServerSession(authOptions)
-  if (!session?.user) return null
-  return session.user
-}
+  if (!session?.user) return []
 
-export async function createAppointment(formData: FormData) {
-  const user = await getSession()
-  
-  // Se não estiver logado, não deixa criar
-  if (!user) return 
+  // @ts-ignore
+  const tenantId = session.user.tenantId
 
-  const patientId = formData.get("patientId") as string
-  const dateStr = formData.get("date") as string
-  const notes = formData.get("notes") as string
-  const price = formData.get("price") as string 
+  const where: any = { tenantId }
+  const hoje = new Date();
 
-  if (!patientId || !dateStr) return
-
-  // CORREÇÃO: Agora passamos o tenantId obrigatório
-  await prisma.appointment.create({
-    data: {
-      date: new Date(dateStr),
-      status: "PENDING",
-      notes: notes,
-      price: price ? parseFloat(price) : 0, 
-      patientId: patientId,
-      
-      // 1. Vincula ao médico logado (sessão)
-      // @ts-ignore
-      doctorId: user.id,
-
-      // 2. Vincula à Clínica (Tenant) - RESOLVE O ERRO
-      // @ts-ignore
-      tenantId: user.tenantId 
+  // Lógica para traduzir "today", "upcoming", "all"
+  if (filterMode === 'today') {
+    // Pega do inicio (00:00) ao fim (23:59) de HOJE
+    where.date = {
+      gte: startOfDay(hoje),
+      lte: endOfDay(hoje)
     }
+  } else if (filterMode === 'upcoming') {
+    // Pega de AGORA para frente
+    where.date = {
+      gte: hoje
+    }
+  } 
+  // Se for 'all', não adicionamos filtro de data, traz tudo.
+
+  const appointments = await prisma.appointment.findMany({
+    where,
+    include: {
+      patient: true,
+      service: true
+    },
+    orderBy: { date: 'asc' }
   })
 
-  revalidatePath("/dashboard/agenda")
-  revalidatePath("/dashboard")
-  redirect("/dashboard/agenda")
+  // Convertendo Decimal e Datas para passar para o Client Component
+  return appointments.map(app => ({
+    ...app,
+    price: app.price.toNumber(), // Decimal para Number
+    date: app.date.toISOString(),
+    createdAt: app.createdAt.toISOString(),
+    updatedAt: app.updatedAt.toISOString()
+  }))
 }
 
-// --- OUTRAS FUNÇÕES (Também precisam de proteção por Tenant) ---
+// --- CRIAR AGENDAMENTO MANUALMENTE ---
+export async function createAppointment(formData: FormData) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return { success: false, error: "Não autorizado" }
 
-export async function updateStatus(formData: FormData) {
-    const user = await getSession()
-    if (!user) return
+  // @ts-ignore
+  const tenantId = session.user.tenantId
+  // @ts-ignore
+  const userId = session.user.id
 
-    const id = formData.get("id") as string
-    const newStatus = formData.get("status") as string
+  const patientId = formData.get("patientId") as string
+  const dateIso = formData.get("date") as string
+  const serviceId = formData.get("serviceId") as string
+  const notes = formData.get("notes") as string
+  
+  // O médico pode definir o preço manualmente na criação se quiser
+  const manualPrice = formData.get("price") 
 
-    if (!id || !newStatus) return
+  if (!patientId || !dateIso) {
+    return { success: false, error: "Dados inválidos" }
+  }
 
-    // Garante que só edita se for da mesma clínica
-    await prisma.appointment.update({
-        where: { 
-            id,
-            // @ts-ignore
-            tenantId: user.tenantId // Filtro de segurança
-        },
-        data: { status: newStatus as any }
-    })
+  const date = parseISO(dateIso)
+  if (!isValid(date)) return { success: false, error: "Data inválida" }
 
-    revalidatePath("/dashboard/agenda")
-    revalidatePath("/dashboard")
-}
-
-export async function deleteAppointment(formData: FormData) {
-    const user = await getSession()
-    if (!user) return
-
-    const id = formData.get("id") as string
-    if (!id) return
-
-    await prisma.appointment.delete({ 
-        where: { 
-            id, 
-            // @ts-ignore
-            tenantId: user.tenantId // Filtro de segurança
-        } 
-    })
-    
-    revalidatePath("/dashboard/agenda")
-    revalidatePath("/dashboard")
-}
-
-export async function getAppointments(filter: string = "today") {
-    const user = await getSession()
-    if (!user) return []
-
-    let dateFilter = {}
-    const today = startOfDay(new Date())
-
-    if (filter === "today") {
-        dateFilter = {
-            gte: today,
-            lte: endOfDay(today)
-        }
-    } else if (filter === "tomorrow") {
-        const tomorrow = addDays(today, 1)
-        dateFilter = {
-            gte: startOfDay(tomorrow),
-            lte: endOfDay(tomorrow)
-        }
-    } else if (filter === "upcoming") {
-        dateFilter = {
-            gte: today
-        }
+  try {
+    // Busca preço do serviço se não for informado manualmente
+    let price = 0
+    if (manualPrice) {
+      price = parseFloat(manualPrice.toString())
+    } else if (serviceId) {
+      const service = await prisma.service.findUnique({ where: { id: serviceId } })
+      if (service) price = Number(service.price)
     }
 
-    return await prisma.appointment.findMany({
-        where: {
-            // @ts-ignore
-            tenantId: user.tenantId, // CRÍTICO: Só mostra agenda desta clínica
-            date: dateFilter
-        },
-        include: {
-            patient: true,
-        },
-        orderBy: {
-            date: 'asc',
-        }
+    await prisma.appointment.create({
+      data: {
+        date,
+        patientId,
+        doctorId: userId,
+        tenantId,
+        serviceId: serviceId || null,
+        notes: notes || "",
+        status: "CONFIRMED",
+        price: price // Salva o preço
+      }
     })
+
+    revalidatePath("/dashboard/agenda")
+    revalidatePath("/dashboard/financeiro") 
+    return { success: true }
+
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Erro ao criar agendamento" }
+  }
+}
+
+// --- ATUALIZAR STATUS (Mover cards) ---
+export async function updateAppointmentStatus(id: string, newStatus: string) {
+    try {
+        await prisma.appointment.update({
+            where: { id },
+            data: { 
+                // @ts-ignore
+                status: newStatus 
+            }
+        })
+        revalidatePath("/dashboard/agenda")
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: "Erro ao mover card" }
+    }
+}
+
+// --- ATUALIZAR PREÇO E DETALHES ---
+export async function updateAppointment(id: string, data: { 
+    price?: number, 
+    serviceId?: string, 
+    notes?: string,
+    status?: string 
+}) {
+    try {
+        await prisma.appointment.update({
+            where: { id },
+            data: {
+                price: data.price,       
+                serviceId: data.serviceId, 
+                notes: data.notes,
+                // @ts-ignore
+                status: data.status
+            }
+        })
+
+        revalidatePath("/dashboard/agenda")
+        revalidatePath("/dashboard/financeiro") 
+        return { success: true }
+    } catch (error) {
+        console.error("Erro ao atualizar agendamento:", error)
+        return { success: false, error: "Erro ao atualizar" }
+    }
+}
+
+// --- EXCLUIR ---
+export async function deleteAppointment(formData: FormData) {
+    const id = formData.get("id") as string
+    try {
+        await prisma.appointment.delete({ where: { id } })
+        revalidatePath("/dashboard/agenda")
+        revalidatePath("/dashboard/financeiro")
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: "Erro ao excluir" }
+    }
 }
