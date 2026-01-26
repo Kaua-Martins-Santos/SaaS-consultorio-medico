@@ -1,6 +1,29 @@
 import Link from "next/link";
-import { LayoutDashboard, Calendar, Users, Settings, CircleDollarSign } from "lucide-react";
+import { LayoutDashboard, Calendar, Users, Settings, CircleDollarSign, LogOut, ChevronRight } from "lucide-react";
 import { getDoctorSettings } from "@/app/actions/settings";
+import { cn } from "@/lib/utils";
+
+// Componente auxiliar para Links da Sidebar (melhora a leitura do código)
+// Em um cenário real, isso poderia ser um arquivo separado.
+const SidebarLink = ({ href, icon: Icon, label, isActive }: any) => {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+        // Lógica de Ativo vs Inativo
+        // Nota: A detecção real de 'active' deve ser feita via usePathname() num client component ou passada via props.
+        // Como este é um server component, assumiremos o estilo base, mas recomendo transformar a Sidebar em Client Component para highlight automático.
+        "text-gray-600 hover:text-primary hover:bg-primary/5"
+      )}
+    >
+      <Icon className={cn("w-5 h-5 transition-colors", "group-hover:text-primary")} />
+      <span>{label}</span>
+      {/* Pequeno indicador de hover */}
+      <ChevronRight className="ml-auto w-4 h-4 opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0 text-primary/50" />
+    </Link>
+  );
+};
 
 export default async function DashboardLayout({
   children,
@@ -10,91 +33,70 @@ export default async function DashboardLayout({
   const doctor = await getDoctorSettings();
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row md:overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50/50"> 
       
-      {/* SIDEBAR */}
-      <div className="w-full flex-none md:w-64 bg-white border-r border-gray-200">
-        <div className="flex h-full flex-col px-3 py-4 md:px-4">
+      {/* SIDEBAR FLUTUANTE (Estilo Moderno) */}
+      <aside className="hidden md:flex w-72 flex-col fixed inset-y-0 z-50">
+        <div className="flex flex-col h-full bg-white border-r border-gray-100 shadow-[2px_0_20px_-10px_rgba(0,0,0,0.05)]">
           
-          {/* LOGO CORPORATIVO */}
-          <Link
-            className="mb-6 flex h-16 items-center justify-start rounded-lg bg-primary px-4 shadow-sm"
-            href="/dashboard"
-          >
-            <div className="text-white">
-              <p className="text-lg font-bold tracking-tight">VIRTUS</p>
-              {/* AQUI MUDOU: De "Clinical Systems" para "Sistema Clínico" */}
-              <p className="text-[10px] font-light uppercase tracking-widest opacity-80">Sistema Clínico</p>
+          {/* Header da Sidebar */}
+          <div className="h-20 flex items-center px-6 border-b border-gray-50">
+            <Link href="/dashboard" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold shadow-glow">
+                V
+              </div>
+              <div>
+                <span className="block text-sm font-bold text-gray-900 tracking-tight">VIRTUS</span>
+                <span className="block text-[10px] font-medium text-gray-500 uppercase tracking-widest">Clinical</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Navegação */}
+          <div className="flex-1 flex flex-col gap-1 px-4 py-6 overflow-y-auto">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+              Gestão
             </div>
-          </Link>
-
-          {/* Links de Navegação */}
-          <div className="flex grow flex-row justify-between space-x-2 md:flex-col md:space-x-0 md:space-y-1">
             
-            <Link
-              href="/dashboard"
-              className="flex h-[40px] grow items-center justify-center gap-3 rounded-md bg-gray-50 p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-primary md:flex-none md:justify-start md:px-3"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <p className="hidden md:block">Visão Geral</p>
-            </Link>
-
-            <Link
-              href="/dashboard/agenda"
-              className="flex h-[40px] grow items-center justify-center gap-3 rounded-md bg-gray-50 p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-primary md:flex-none md:justify-start md:px-3"
-            >
-              <Calendar className="w-5 h-5" />
-              <p className="hidden md:block">Agenda</p>
-            </Link>
-
-            <Link
-              href="/dashboard/pacientes"
-              className="flex h-[40px] grow items-center justify-center gap-3 rounded-md bg-gray-50 p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-primary md:flex-none md:justify-start md:px-3"
-            >
-              <Users className="w-5 h-5" />
-              <p className="hidden md:block">Pacientes</p>
-            </Link>
-
-            <Link
-              href="/dashboard/financeiro"
-              className="flex h-[40px] grow items-center justify-center gap-3 rounded-md bg-gray-50 p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-primary md:flex-none md:justify-start md:px-3"
-            >
-              <CircleDollarSign className="w-5 h-5" />
-              <p className="hidden md:block">Financeiro</p>
-            </Link>
+            <SidebarLink href="/dashboard" icon={LayoutDashboard} label="Visão Geral" />
+            <SidebarLink href="/dashboard/agenda" icon={Calendar} label="Agenda" />
+            <SidebarLink href="/dashboard/pacientes" icon={Users} label="Pacientes" />
             
-            <Link
-              href="/dashboard/configuracoes"
-              className="flex h-[40px] grow items-center justify-center gap-3 rounded-md bg-gray-50 p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-primary md:flex-none md:justify-start md:px-3"
-            >
-              <Settings className="w-5 h-5" />
-              <p className="hidden md:block">Configurações</p>
-            </Link>
-
-            <div className="hidden h-auto w-full grow rounded-md bg-gray-50 md:block"></div>
-            
-            {/* RODAPÉ DO MÉDICO */}
-            <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 mt-auto">
-                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gray-200 text-gray-600 font-bold border border-gray-300">
-                   {doctor?.name?.charAt(0) || "D"}
-                </div>
-                <div className="flex-1 overflow-hidden hidden md:block">
-                   <p className="truncate text-sm font-bold text-gray-800">
-                     {doctor?.name || "Dr. Admin"}
-                   </p>
-                   <p className="truncate text-xs text-gray-500">
-                     {doctor?.specialty || "Médico"}
-                   </p>
-                </div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2 mt-6">
+              Administrativo
             </div>
+            <SidebarLink href="/dashboard/financeiro" icon={CircleDollarSign} label="Financeiro" />
+            <SidebarLink href="/dashboard/configuracoes" icon={Settings} label="Configurações" />
+          </div>
 
+          {/* User Profile - Estilo Cartão */}
+          <div className="p-4 border-t border-gray-50">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+               <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/10 group-hover:scale-105 transition-transform">
+                  {doctor?.name?.charAt(0) || "D"}
+               </div>
+               <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {doctor?.name || "Dr. Admin"}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">
+                    {doctor?.specialty || "Médico Titular"}
+                  </p>
+               </div>
+               <LogOut className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
+            </div>
           </div>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex-grow p-6 md:overflow-y-auto md:p-12">
-        {children}
-      </div>
+      {/* Main Content Area */}
+      <main className="flex-1 md:pl-72 flex flex-col min-h-screen transition-all duration-300">
+        {/* Topbar Mobile (se necessário) ou apenas área de conteúdo */}
+        <div className="flex-1 p-6 md:p-10 max-w-7xl mx-auto w-full animate-fade-in-up">
+           {/* Inserir aqui Breadcrumbs ou Header da Página se desejar */}
+           {children}
+        </div>
+      </main>
     </div>
   );
 }
