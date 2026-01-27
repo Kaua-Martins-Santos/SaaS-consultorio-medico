@@ -1,17 +1,54 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { parseISO, isValid, addMinutes, isBefore, startOfHour, setHours, setMinutes, getDay, format } from "date-fns"
+import { parseISO, isValid, addMinutes, isBefore, setHours, setMinutes, getDay, format } from "date-fns"
 
-// Tem que ser igual ao do Bot
 const API_SECRET = "minha-senha-secreta-123"
-const APPOINTMENT_DURATION = 30; // Duração padrão em minutos
+const APPOINTMENT_DURATION = 30; 
 
+// --- NOVO: Função para buscar dados da clínica (Endereço, Nome, etc) ---
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const secret = searchParams.get("secret")
+  const tenantId = searchParams.get("tenantId")
+
+  // 1. Segurança
+  if (secret !== API_SECRET) {
+    return NextResponse.json({ error: "Senha incorreta" }, { status: 401 })
+  }
+
+  if (!tenantId) {
+    return NextResponse.json({ error: "Tenant ID faltando" }, { status: 400 })
+  }
+
+  try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { 
+        name: true, 
+        address: true,
+        whatsappPhone: true 
+      }
+    })
+
+    if (!tenant) return NextResponse.json({ error: "Clínica não encontrada" }, { status: 404 })
+
+    return NextResponse.json({
+      name: tenant.name,
+      address: tenant.address || "Endereço não cadastrado no sistema.",
+      phone: tenant.whatsappPhone
+    })
+
+  } catch (error) {
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+  }
+}
+
+// --- MANTIDO: Função de criar agendamento (POST) ---
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { secret, name, phone, dateIso, tenantId } = body
+    const { secret, name, phone, dateIso, tenantId, serviceCategory } = body
 
-    // 1. Segurança
     if (secret !== API_SECRET) {
       return NextResponse.json({ error: "Senha incorreta" }, { status: 401 })
     }
@@ -20,7 +57,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados faltando" }, { status: 400 })
     }
 
-    // 2. Acha ou Cria Paciente
     const cleanPhone = phone.replace(/\D/g, "")
     let patient = await prisma.patient.findFirst({
       where: { phone: { contains: cleanPhone }, tenantId }
@@ -32,7 +68,6 @@ export async function POST(req: Request) {
       })
     }
 
-    // 3. Validação de Data Básica
     const appointmentDate = parseISO(dateIso)
     if (!isValid(appointmentDate)) {
       return NextResponse.json({ error: "Data inválida" }, { status: 400 })
@@ -42,56 +77,59 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Data no passado" }, { status: 400 })
     }
 
-    // 4. Acha Médico (Prioriza DOCTOR, fallback para OWNER)
     const doctor = await prisma.user.findFirst({
       where: { 
         tenantId,
         OR: [{ role: "DOCTOR" }, { role: "OWNER" }]
       },
-      include: {
-        availabilities: true // Traz os horários de trabalho
-      }
+      include: { availabilities: true }
     })
 
     if (!doctor) {
       return NextResponse.json({ error: "Sem médico disponível" }, { status: 404 })
     }
 
-    // --- LÓGICA DE DISPONIBILIDADE E SUGESTÃO ---
+    // Busca o Serviço e Preço
+    let selectedService = null;
+    let appointmentPrice = 0;
 
-    // Função para verificar se um horário específico está livre
+    if (serviceCategory) {
+        const keyword = serviceCategory === 'RETORNO' ? 'Retorno' : 'Consulta';
+        selectedService = await prisma.service.findFirst({
+            where: {
+                tenantId: tenantId,
+                name: { contains: keyword, mode: 'insensitive' },
+                active: true
+            }
+        });
+
+        if (selectedService) {
+            appointmentPrice = Number(selectedService.price);
+        }
+    }
+
     const isSlotAvailable = async (date: Date) => {
-        // 1. Verifica Expediente (Availability)
-        // Se o médico não tiver disponibilidade configurada, assumimos Seg-Sex 08:00-18:00
         let isWorkingHours = false;
         
         if (doctor.availabilities.length > 0) {
-            const dayOfWeek = getDay(date); // 0 = Domingo, 1 = Segunda...
+            const dayOfWeek = getDay(date);
             const availability = doctor.availabilities.find(a => a.dayOfWeek === dayOfWeek);
             
             if (availability) {
                 const [startHour, startMin] = availability.startTime.split(':').map(Number);
                 const [endHour, endMin] = availability.endTime.split(':').map(Number);
-                
                 const startWork = setMinutes(setHours(date, startHour), startMin);
                 const endWork = setMinutes(setHours(date, endHour), endMin);
-                
-                if (date >= startWork && date < endWork) {
-                    isWorkingHours = true;
-                }
+                if (date >= startWork && date < endWork) isWorkingHours = true;
             }
         } else {
-            // Fallback: Seg a Sex, 09h as 18h
             const day = getDay(date);
             const hour = date.getHours();
-            if (day >= 1 && day <= 5 && hour >= 9 && hour < 18) {
-                isWorkingHours = true;
-            }
+            if (day >= 1 && day <= 5 && hour >= 9 && hour < 18) isWorkingHours = true;
         }
 
         if (!isWorkingHours) return "OUT_OF_HOURS";
 
-        // 2. Verifica Conflitos de Agenda
         const conflict = await prisma.appointment.findFirst({
             where: {
                 doctorId: doctor.id,
@@ -101,20 +139,17 @@ export async function POST(req: Request) {
         });
 
         if (conflict) return "BUSY";
-
         return "AVAILABLE";
     };
 
-    // Verifica o horário solicitado
     const availabilityStatus = await isSlotAvailable(appointmentDate);
 
     if (availabilityStatus !== "AVAILABLE") {
-        // Se não está disponível, busca as próximas 3 sugestões
         const suggestions: string[] = [];
-        let attemptDate = addMinutes(appointmentDate, APPOINTMENT_DURATION); // Começa logo após
+        let attemptDate = addMinutes(appointmentDate, APPOINTMENT_DURATION);
         let attempts = 0;
 
-        while (suggestions.length < 3 && attempts < 50) { // Limite de tentativas para não travar
+        while (suggestions.length < 3 && attempts < 50) { 
             const status = await isSlotAvailable(attemptDate);
             if (status === "AVAILABLE") {
                 suggestions.push(format(attemptDate, "dd/MM/yyyy HH:mm"));
@@ -123,31 +158,32 @@ export async function POST(req: Request) {
             attempts++;
         }
 
-        const message = availabilityStatus === "BUSY" ? "Horário ocupado" : "Fora do expediente";
-        
         return NextResponse.json({ 
-            error: message, 
+            error: availabilityStatus === "BUSY" ? "Horário ocupado" : "Fora do expediente", 
             suggestions,
-            status: 409 // Conflict
+            status: 409
         }, { status: 409 });
     }
 
-    // 6. Cria Agendamento (Se chegou aqui, está livre)
     const appointment = await prisma.appointment.create({
       data: {
         date: appointmentDate,
-        status: "CONFIRMED", // Já confirmamos pois validamos disponibilidade
+        status: "CONFIRMED",
         notes: "Agendado via WhatsApp Bot",
         patientId: patient.id,
         doctorId: doctor.id,
-        tenantId
+        tenantId,
+        serviceId: selectedService?.id || null, 
+        price: appointmentPrice 
       }
     })
 
     return NextResponse.json({ 
       success: true, 
       id: appointment.id, 
-      doctor: doctor.name 
+      doctor: doctor.name,
+      serviceName: selectedService?.name || "Consulta Padrão",
+      price: appointmentPrice 
     })
 
   } catch (error) {
